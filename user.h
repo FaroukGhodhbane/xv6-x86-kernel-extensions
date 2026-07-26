@@ -23,6 +23,7 @@ int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
+int getLCADistance(int pid1, int pid2);
 
 // ulib.c
 int stat(const char*, struct stat*);
