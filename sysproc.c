@@ -27,6 +27,21 @@ sys_wait(void)
 }
 
 int
+sys_getLCADistance(void)
+{
+  int pid1, pid2;
+
+  if(argint(0, &pid1) < 0){
+    return -1;
+  }
+  if(argint(1, &pid2) < 0){
+    return -1;
+  }
+  
+  return getLCADistance(pid1, pid2);
+}
+
+int
 sys_kill(void)
 {
   int pid;
