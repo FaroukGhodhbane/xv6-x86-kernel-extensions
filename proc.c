@@ -311,11 +311,11 @@ wait(void)
   }
 }
 
-// Returns how far up is the lowest common ancestor (lca) of 2 given processes
-// 1 if lca is parent, 2 if grandparent.. etc.
-// 0 if lca is init or if either passed process is init
-// 1 if passed processes are the same and neither is init, since they share parent
-// -1 if either passed process does not exist
+// Returns distance of 2 processes through their lowest common ancestor (lca)
+// Returns 0 if passed processes are the same process
+// Returns -1 if lca is init process
+// -2 if either passed process does not exist
+// -3 for undefined behavior. Normally all processes should go back to init
 int
 getLCADistance(int pid1, int pid2)
 {
@@ -335,59 +335,59 @@ getLCADistance(int pid1, int pid2)
     }
   }
 
-  // If either doesn't exist, return -1
+  // If either doesn't exist, return -2
   if(p1 == 0 || p2 == 0){
     release(&ptable.lock);
-    return -1;
+    return -2;
   }
 
-  // If either is init (PID 1), return 0
-  if(p1->pid == 1 || p2->pid == 1){
+  // If they're the same, distance is 0
+  if(pid1 == pid2){
     release(&ptable.lock);
     return 0;
   }
 
-  // If they're the same, they share the parent
-  if(pid1 == pid2){
-    release(&ptable.lock);
-    return 1;
-  }
-
   // Collect ancestors of pid1
-  int ancestors_pid1[NPROC];
+  int ancestors_pid1[NPROC]; 
   int count_pid1 = 0;
 
-  struct proc *current = p1;
+  struct proc *current = p1; 
 
-  while(current->pid != 1){  // Stop when reaching init
-    ancestors_pid1[count_pid1] = current->parent->pid;
+  while(current != 0){  // ensure current is not Null before dereferencing
+    ancestors_pid1[count_pid1] = current->pid;
     count_pid1++;
+    if(current->pid == 1){
+      break;
+    }
     current = current->parent;
   }
 
   // Go through pid2 ancestors and check for a match
   current = p2;
-  int distance_pid2 = 1;  // If first check is a match, then parent
+  int distance_pid2_to_lca = 0;  // pid2 can be parent of pid1
 
-  while(current->pid != 1){  // Stop when reaching init
-    int target_parent_pid = current->parent->pid;  // Save target parent pid
+  while(current != 0){
+    int target_parent_pid = current->pid;  // Save target parent pid
 
     for(int i = 0; i < count_pid1; i++){  // Compare
       if(target_parent_pid == ancestors_pid1[i]){
         release(&ptable.lock);
         if(target_parent_pid == 1){  // Check if match is init
-          return 0;
+          return -1;
         }
-        int distance_pid1 = i + 1;  // First pid1 ancestor is at i = 0
-        return (distance_pid1 > distance_pid2) ? distance_pid1 : distance_pid2;
+        int distance_pid1_to_lca = i;
+        return distance_pid1_to_lca + distance_pid2_to_lca;
       }
     }
+    if(current->pid == 1){
+      break;
+    }
     current = current->parent;  // Advance to next pid2 ancestor
-    distance_pid2++;
+    distance_pid2_to_lca++;
   }
-  // If no match, then lca is init
+  // No match, undefined behavior because all processes should go back to init
   release(&ptable.lock);
-  return 0;
+  return -3;
 }
 
 //PAGEBREAK: 42
